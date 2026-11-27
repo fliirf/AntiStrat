@@ -68,11 +68,11 @@ function ReportView() {
             </ul>
           </section>
 
-          <section className="card">
-            <h2>Team-specific tells</h2>
-            <p className="muted">
-              Early-round signals followed by a plant on the same site for this team. In testing, these did not beat the
-              map-wide rules on the call sheet, so treat them as hints.
+          <details className="card">
+            <summary><h2 className="inline-h">Team-specific tells (exploratory)</h2></summary>
+            <p className="warn">
+              Not validated: in a test on newer matches, team-specific reads did not beat the map-wide call sheet. Use the
+              call sheet and the live read for decisions; these are only hints for VOD review.
             </p>
             {report.tells.length === 0 && <p className="muted">No reliable tells (each needs at least 5 rounds).</p>}
             <ul className="tells">
@@ -86,7 +86,7 @@ function ReportView() {
                 </li>
               ))}
             </ul>
-          </section>
+          </details>
 
           <section className="card">
             <h2>How readable are they?</h2>

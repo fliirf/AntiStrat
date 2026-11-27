@@ -17,6 +17,7 @@ from sklearn.model_selection import GroupKFold
 from antistrat.adaptation import team_adaptation
 from antistrat.callsheet import map_call_sheet, opponent_traits
 from antistrat.edges import confident_read, find_edges, team_specific_gain, timing
+from antistrat.liveread import leaks, map_live_read, sim_calibration
 from antistrat.model import FEATURE_SETS, _clf
 
 PRIOR_WEIGHT = 30.0  # walk-forward: a team's own site mix barely beats the map's, so shrink hard
@@ -139,7 +140,13 @@ def build_reports(features: pd.DataFrame, metrics: dict, data_dir: Path, out_dir
                                 "confident_read": {name: confident_read(d[f"pred_{name}"], d[f"prob_{name}"], d["site"])
                                                    for name in FEATURE_SETS}}
                             for m, d in oof.items()},
-             "call_sheet": {m: map_call_sheet(features, m, d.attrs["sites"]) for m, d in oof.items()}}
+             "call_sheet": {m: map_call_sheet(features, m, d.attrs["sites"]) for m, d in oof.items()},
+             "live_read": {m: map_live_read(features, m) for m in oof},
+             "sim_calibration": sim_calibration(features)}
+    for m, d in oof.items():  # league readability, to compare the target team against
+        index["map_detail"][m]["read_avg"] = {
+            name: round(float((d[f"pred_{name}"] == d["site"])[d[f"pred_{name}"].notna()].mean()), 3)
+            for name in FEATURE_SETS}
     read_rule = {}
     for m, d in oof.items():
         r = confident_read(d["pred_contact"], d["prob_contact"], d["site"], thresholds=(0.7,))[0]
@@ -192,6 +199,8 @@ def build_reports(features: pd.DataFrame, metrics: dict, data_dir: Path, out_dir
                 "economy": {"attack_win_rate": round(float((attack["winside"] == "attacker").mean()), 3),
                             "plant_rate": round(n / len(attack), 3)},
             }
+            if team in target_ids:  # anti-read: what gives our own site away
+                report["leaks"] = leaks(features, target_ids, m, sites)
             (out_dir / f"{team}_{m}.json").write_text(json.dumps(report, indent=2) + "\n")
             entry["maps"].append(m)
         if entry["maps"]:

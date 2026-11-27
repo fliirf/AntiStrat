@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from antistrat.config import AGGREGATES_DIR
-from antistrat.sim import simulate, suggest_plan
+from antistrat.sim import Assumptions, simulate, suggest_plan
 
 app = FastAPI(title="AntiStrat API", version="0.2.0")
 app.add_middleware(
@@ -72,7 +72,13 @@ def report(team: str, map_name: str) -> dict:
 
 @app.get("/suggest/{team}/{map_name}")
 def suggest(team: str, map_name: str) -> dict:
-    return {"plan": suggest_plan(_report(team, map_name))}
+    return {"plan": suggest_plan(_report(team, map_name), _assumptions())}
+
+
+def _assumptions() -> Assumptions:
+    path = agg_dir() / "index.json"
+    cal = json.loads(path.read_text()).get("sim_calibration") if path.exists() else None
+    return Assumptions.from_calibration(cal)
 
 
 class SimRequest(BaseModel):
@@ -90,7 +96,9 @@ def run_simulation(req: SimRequest) -> dict:
     for p in req.plan:
         if p not in ("default", "read") and not (p.startswith("stack:") and p[6:] in rep["site_mix_smoothed"]):
             raise HTTPException(400, f"unknown plan '{p}'")
-    economy = _read("index.json").get("economy")
+    idx = _read("index.json")
+    economy = idx.get("economy")
     if not economy:
         raise HTTPException(404, "economy model missing from index.json")
-    return asdict(simulate(rep, economy, req.plan, req.start_side, req.n, req.seed))
+    a = Assumptions.from_calibration(idx.get("sim_calibration"))
+    return asdict(simulate(rep, economy, req.plan, req.start_side, req.n, req.seed, a))

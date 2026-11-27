@@ -5,7 +5,7 @@ import Nav from "@/components/Nav";
 import Picker, { useSelection } from "@/components/Picker";
 import SampleBanner from "@/components/SampleBanner";
 import CallSheetCard from "@/components/CallSheetCard";
-import { cap, pct, planKey, readStats } from "@/lib/data";
+import { assumptions, cap, pct, planKey, readStats } from "@/lib/data";
 import { useIndex, useReport } from "@/lib/useData";
 
 const ROUNDS = 24;
@@ -44,13 +44,15 @@ function TacticsView() {
   const label = (o: string) => (o === "default" ? "Default" : o === "read" ? "Default + rotate on read" : `Stack ${o.slice(6)}`);
   const defending = (i: number) => (startSide === "defense") === i < 12;
   const { acc, coverage } = readStats(report);
+  const a = assumptions(index);
   const value = (o: string) => {
     if (o.startsWith("stack:")) {
       const p = report.site_mix_smoothed[o.slice(6)] ?? 0;
-      return p * 0.12 - (1 - p) * 0.08;
+      return p * a.stackGain - (1 - p) * a.stackCost;
     }
-    return o === "read" ? coverage * (acc * 0.1 - (1 - acc) * 0.06) : 0;
+    return o === "read" ? coverage * (acc * a.readGain - (1 - acc) * a.readCost) : 0;
   };
+  const retakes = (report.traits ?? []).filter((t) => t.trait === "retake");
   const best = options.reduce((a, b) => (value(a) >= value(b) ? a : b));
 
   return (
@@ -95,6 +97,27 @@ function TacticsView() {
             </div>
           ))}
         </div>
+        <h3>When we attack</h3>
+        {retakes.length ? (
+          <ul className="tells">
+            {retakes.map((t, i) => (
+              <li key={i}>
+                <span className={`chip conf-${t.confidence}`}>{t.confidence} confidence · {t.n} rounds</span>
+                <div>{t.text}</div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">
+            No defensive weakness of theirs held steady over time in the data (retakes, early aggression), so there is no
+            opponent-specific attack call. Play your own default.
+          </p>
+        )}
+        <p className="muted small">
+          {a.calibrated
+            ? `Call values use the data: a first kill swings a defence round by ${pct(index.sim_calibration?.first_kill_swing)}; an extra defender at the fight is credited a quarter of that (${pct(a.stackGain)}).`
+            : "Call values use default assumptions (no calibration in the data yet)."}
+        </p>
         <div className="row end">
           <Link className="button" href={`/simulation?team=${team}&map=${map}`}>Simulate this plan →</Link>
         </div>

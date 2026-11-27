@@ -59,6 +59,42 @@ export interface CallSheet {
   n_newer: number;
 }
 
+export interface LiveCell {
+  n: number;
+  counts: Record<string, number>;
+}
+
+export interface LiveRead {
+  sites: string[];
+  min_cell: number;
+  cells: Record<string, LiveCell>;
+  validation: {
+    n_test: number;
+    table_acc: number;
+    gbm_acc: number;
+    baseline_acc: number;
+    table_confident: { min_prob: number; coverage: number; acc: number | null };
+  };
+}
+
+export interface Leak {
+  signal: string;
+  site: string;
+  n: number;
+  rate: number;
+  league_rate: number;
+  diff: number;
+}
+
+export interface SimCalibration {
+  def_win_after_def_first_kill?: number;
+  def_win_after_att_first_kill?: number;
+  first_kill_swing?: number;
+  n: number;
+  extra_defender_value: number | null;
+  rotation_share?: number;
+}
+
 export interface Report {
   team: { id: string; name: string };
   map: string;
@@ -82,6 +118,7 @@ export interface Report {
   read_rule?: ReadRule;
   site_mix_note?: string;
   timing?: Timing;
+  leaks?: Leak[];
   is_sample?: boolean;
 }
 
@@ -95,6 +132,10 @@ export interface Index {
   metrics: Record<string, { baseline_acc: number; early: { acc: number }; contact: { acc: number }; n_test: number }>;
   sites?: Record<string, { centers: Record<string, [number, number]> }>;
   call_sheet?: Record<string, CallSheet>;
+  live_read?: Record<string, LiveRead>;
+  sim_calibration?: SimCalibration;
+  self?: { id: string; name: string; maps: string[] }[];
+  map_detail?: Record<string, { read_avg?: { early: number; contact: number } }>;
 }
 
 export interface TimelineEntry {
@@ -152,4 +193,22 @@ export const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export function planKey(team: string, map: string) {
   return `antistrat.plan.${team}.${map}`;
+}
+
+/** Shift sizes the match engine uses: calibrated from the data when available (see sim.py). */
+export function assumptions(index: Index) {
+  const v = index.sim_calibration?.extra_defender_value;
+  if (!v) return { stackGain: 0.12, stackCost: 0.08, readGain: 0.1, readCost: 0.06, calibrated: false };
+  const r = v * (index.sim_calibration?.rotation_share ?? 0.75);
+  return { stackGain: v, stackCost: v, readGain: r, readCost: r, calibrated: true };
+}
+
+/** Live-read lookup with the same back-off as liveread.lookup in the engine. */
+export function liveLookup(lr: LiveRead, util: string, fk: string): { key: string; probs: Record<string, number>; n: number } {
+  const keys = [`${util}|${fk}`, `*|${fk}`, `${util}|*`, "*|*"];
+  const key = keys.find((k) => (lr.cells[k]?.n ?? 0) >= lr.min_cell) ?? "*|*";
+  const cell = lr.cells[key];
+  const total = cell.n + lr.sites.length;
+  const probs = Object.fromEntries(lr.sites.map((s) => [s, (cell.counts[s] + 1) / total]));
+  return { key, probs, n: cell.n };
 }

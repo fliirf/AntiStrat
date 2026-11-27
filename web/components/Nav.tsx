@@ -6,6 +6,8 @@ const tabs = [
   { href: "/report", label: "Opponent report" },
   { href: "/tactics", label: "Tactics" },
   { href: "/simulation", label: "Simulation" },
+  { href: "/live", label: "Live read" },
+  { href: "/self", label: "Our readability" },
 ];
 
 export default function Nav() {

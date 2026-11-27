@@ -12,7 +12,10 @@ Model per round:
   * stack:X: an extra defender on X; helps if they hit X, hurts otherwise
   * read: hold the default, and rotate only when the in-round read is confident
     (top site probability >= 0.7); it then helps with that read's accuracy
-The shift sizes are explicit assumptions (Assumptions) shown next to the results.
+The shift sizes are explicit assumptions (Assumptions) shown next to the results. With a
+calibration from the data (liveread.sim_calibration) they are anchored to the measured
+first-kill swing: an extra defender at the fight is worth a quarter of it, a rotation
+75% of that (it arrives later), and a wrong call costs as much as a right one gains.
 """
 from __future__ import annotations
 
@@ -34,6 +37,14 @@ class Assumptions:
     loss_credits: tuple[int, ...] = (1900, 2400, 2900)
     full_buy: int = 3900
     half_buy: int = 2000
+
+    @classmethod
+    def from_calibration(cls, cal: dict | None) -> "Assumptions":
+        if not cal or not cal.get("extra_defender_value"):
+            return cls()
+        v = float(cal["extra_defender_value"])
+        r = v * float(cal.get("rotation_share", 0.75))
+        return cls(stack_gain=round(v, 3), stack_cost=round(v, 3), read_gain=round(r, 3), read_cost=round(r, 3))
 
 
 @dataclass
