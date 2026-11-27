@@ -15,10 +15,11 @@ import pandas as pd
 from sklearn.model_selection import GroupKFold
 
 from antistrat.adaptation import team_adaptation
+from antistrat.callsheet import map_call_sheet, opponent_traits
 from antistrat.edges import confident_read, find_edges, team_specific_gain, timing
 from antistrat.model import FEATURE_SETS, _clf
 
-PRIOR_WEIGHT = 5.0
+PRIOR_WEIGHT = 30.0  # walk-forward: a team's own site mix barely beats the map's, so shrink hard
 MIN_TELL_N = 5
 MIN_TARGET_GAMES = 3  # only scout maps the target team actually plays
 
@@ -137,7 +138,13 @@ def build_reports(features: pd.DataFrame, metrics: dict, data_dir: Path, out_dir
              "map_detail": {m: {"timing": timing(features[features["map"] == m]),
                                 "confident_read": {name: confident_read(d[f"pred_{name}"], d[f"prob_{name}"], d["site"])
                                                    for name in FEATURE_SETS}}
-                            for m, d in oof.items()}}
+                            for m, d in oof.items()},
+             "call_sheet": {m: map_call_sheet(features, m, d.attrs["sites"]) for m, d in oof.items()}}
+    read_rule = {}
+    for m, d in oof.items():
+        r = confident_read(d["pred_contact"], d["prob_contact"], d["site"], thresholds=(0.7,))[0]
+        read_rule[m] = r
+        index["call_sheet"][m]["confident_read"] = r
 
     index["self"] = []  # the target scouted like an opponent: how readable are we?
     for team in opponents + sorted(target_ids):
@@ -175,6 +182,10 @@ def build_reports(features: pd.DataFrame, metrics: dict, data_dir: Path, out_dir
                 "site_counts": counts, "tells": _tells(tr, sites), "read_accuracy": read,
                 "adaptation": adaptation,
                 "edges": _edges_for(edges, team, m),
+                "traits": opponent_traits(features, team, m, sites),
+                "read_rule": read_rule[m],
+                "site_mix_note": "Close to the map average: in a walk-forward test, a team's own site mix "
+                                 "did not predict its next rounds better than the map's.",
                 "timing": timing(attack),
                 "confident_read": {name: confident_read(tr[f"pred_{name}"], tr[f"prob_{name}"], tr["site"])
                                    for name in FEATURE_SETS},

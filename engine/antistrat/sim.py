@@ -10,7 +10,8 @@ Model per round:
 - The coach's plan for that round shifts the defence win probability:
   * default: balanced setup, no shift
   * stack:X: an extra defender on X; helps if they hit X, hurts otherwise
-  * read: play the read and rotate on early tells; helps with the read model's accuracy
+  * read: hold the default, and rotate only when the in-round read is confident
+    (top site probability >= 0.7); it then helps with that read's accuracy
 The shift sizes are explicit assumptions (Assumptions) shown next to the results.
 """
 from __future__ import annotations
@@ -73,12 +74,22 @@ def plan_shift(plan: str, site: np.ndarray, read_acc: float, rng: np.random.Gene
     return np.zeros(len(site))
 
 
-def expected_shift(plan: str, mix: dict[str, float], read_acc: float, a: Assumptions) -> float:
+def _read(report: dict) -> tuple[float, float]:
+    """(accuracy, coverage) of the read the coach acts on. Uses the confident read rule
+    when the report has one; older reports fall back to acting on every contact read."""
+    rule = report.get("read_rule") or {}
+    if rule.get("acc") is not None and rule.get("coverage"):
+        return float(rule["acc"]), float(rule["coverage"])
+    acc = report["read_accuracy"].get("contact", {}).get("acc") or report["read_accuracy"]["baseline"]["acc"]
+    return float(acc), 1.0
+
+
+def expected_shift(plan: str, mix: dict[str, float], read_acc: float, a: Assumptions, coverage: float = 1.0) -> float:
     if plan.startswith("stack:"):
         p = mix.get(plan.split(":", 1)[1], 0.0)
         return p * a.stack_gain - (1 - p) * a.stack_cost
     if plan == "read":
-        return read_acc * a.read_gain - (1 - read_acc) * a.read_cost
+        return coverage * (read_acc * a.read_gain - (1 - read_acc) * a.read_cost)
     return 0.0
 
 
@@ -91,7 +102,7 @@ def simulate(report: dict, economy: dict, plan: list[str], start_side: str = "de
     sites = list(report["site_mix_smoothed"])
     mix = np.array([report["site_mix_smoothed"][s] for s in sites], dtype=float)
     mix = mix / mix.sum()
-    acc = report["read_accuracy"].get("contact", {}).get("acc") or report["read_accuracy"]["baseline"]["acc"]
+    acc, cov = _read(report)
     plan = (list(plan) + ["default"] * 24)[:24]
 
     us_money = np.full(n, 800.0)
@@ -118,6 +129,8 @@ def simulate(report: dict, economy: dict, plan: list[str], start_side: str = "de
             p_att = eco.p_attack_win(them_load, us_load)
             site = rng.choice(sites, size=n, p=mix)
             shift = plan_shift(plan[i], site, acc, rng, a)
+            if plan[i] == "read":  # no confident read this round: default setup, no shift
+                shift = np.where(rng.random(n) < cov, shift, 0.0)
             p_us = np.clip(1 - p_att + shift, 0.02, 0.98)
         else:
             p_us = eco.p_attack_win(us_load, them_load)
@@ -138,12 +151,12 @@ def simulate(report: dict, economy: dict, plan: list[str], start_side: str = "de
         if defending:
             mixd = {s: float(p) for s, p in zip(sites, mix)}
             entry["likely_site"] = sites[int(np.argmax(mix))]
-            entry["delta_vs_default"] = round(float(expected_shift(plan[i], mixd, acc, a)), 3)
+            entry["delta_vs_default"] = round(float(expected_shift(plan[i], mixd, acc, a, cov)), 3)
             entry["leak"] = bool(entry["delta_vs_default"] < 0)
             if plan[i].startswith("stack:"):
                 entry["note"] = f"{1 - mixd.get(plan[i][6:], 0):.0%} of their attacks go elsewhere"
             elif plan[i] == "read":
-                entry["note"] = f"read is right {acc:.0%} of the time"
+                entry["note"] = f"confident read in {cov:.0%} of rounds, right {acc:.0%} of the time"
         timeline.append(entry)
 
     # Overtime at 12-12: decided by a single fair-ish round pair (average win chance).
@@ -164,7 +177,7 @@ def suggest_plan(report: dict, assumptions: Assumptions | None = None) -> list[s
     """Best expected call per defence round given the report (same for every round)."""
     a = assumptions or Assumptions()
     mix = report["site_mix_smoothed"]
-    acc = report["read_accuracy"].get("contact", {}).get("acc") or report["read_accuracy"]["baseline"]["acc"]
+    acc, cov = _read(report)
     options = ["default", "read", *[f"stack:{s}" for s in mix]]
-    best = max(options, key=lambda p: expected_shift(p, mix, acc, a))
+    best = max(options, key=lambda p: expected_shift(p, mix, acc, a, cov))
     return [best] * 24

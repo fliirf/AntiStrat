@@ -48,14 +48,32 @@ function ReportView() {
                 </tbody>
               </table>
             </div>
-            {report.sample.plants < 20 && (
+            {report.site_mix_note && <p className="warn">{report.site_mix_note}</p>}
+            {!report.site_mix_note && report.sample.plants < 20 && (
               <p className="warn">Small sample: shares are pulled toward the map average.</p>
             )}
           </section>
 
           <section className="card">
-            <h2>Tells to watch</h2>
-            <p className="muted">Early-round signals followed by a plant on the same site.</p>
+            <h2>What stays true about them</h2>
+            <p className="muted">Traits that held steady between older and newer matches in the data.</p>
+            {(report.traits ?? []).length === 0 && <p className="muted">Not enough rounds for a stable trait.</p>}
+            <ul className="tells">
+              {(report.traits ?? []).map((t, i) => (
+                <li key={i}>
+                  <span className={`chip conf-${t.confidence}`}>{t.confidence} confidence · {t.n} rounds</span>
+                  <div>{t.text}</div>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="card">
+            <h2>Team-specific tells</h2>
+            <p className="muted">
+              Early-round signals followed by a plant on the same site for this team. In testing, these did not beat the
+              map-wide rules on the call sheet, so treat them as hints.
+            </p>
             {report.tells.length === 0 && <p className="muted">No reliable tells (each needs at least 5 rounds).</p>}
             <ul className="tells">
               {report.tells.map((t, i) => (

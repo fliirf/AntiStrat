@@ -4,7 +4,8 @@ import Link from "next/link";
 import Nav from "@/components/Nav";
 import Picker, { useSelection } from "@/components/Picker";
 import SampleBanner from "@/components/SampleBanner";
-import { cap, pct, planKey } from "@/lib/data";
+import CallSheetCard from "@/components/CallSheetCard";
+import { cap, pct, planKey, readStats } from "@/lib/data";
 import { useIndex, useReport } from "@/lib/useData";
 
 const ROUNDS = 24;
@@ -40,15 +41,15 @@ function TacticsView() {
   if (!index || !report) return <p className="muted">Loading…</p>;
   const sites = Object.keys(report.site_mix_smoothed);
   const options = ["default", "read", ...sites.map((s) => `stack:${s}`)];
-  const label = (o: string) => (o === "default" ? "Default" : o === "read" ? "Play the read" : `Stack ${o.slice(6)}`);
+  const label = (o: string) => (o === "default" ? "Default" : o === "read" ? "Default + rotate on read" : `Stack ${o.slice(6)}`);
   const defending = (i: number) => (startSide === "defense") === i < 12;
-  const acc = report.read_accuracy.contact.acc ?? report.read_accuracy.baseline.acc;
+  const { acc, coverage } = readStats(report);
   const value = (o: string) => {
     if (o.startsWith("stack:")) {
       const p = report.site_mix_smoothed[o.slice(6)] ?? 0;
       return p * 0.12 - (1 - p) * 0.08;
     }
-    return o === "read" ? acc * 0.1 - (1 - acc) * 0.06 : 0;
+    return o === "read" ? coverage * (acc * 0.1 - (1 - acc) * 0.06) : 0;
   };
   const best = options.reduce((a, b) => (value(a) >= value(b) ? a : b));
 
@@ -56,7 +57,8 @@ function TacticsView() {
     <>
       <SampleBanner show={index.is_sample} />
       <Picker index={index} />
-      <section className="card">
+      <CallSheetCard sheet={index.call_sheet?.[map]} report={report} />
+      <section className="card noprint">
         <div className="row between">
           <h2>Game plan vs {report.team.name} on {cap(map)}</h2>
           <div className="row">
@@ -72,8 +74,9 @@ function TacticsView() {
           </div>
         </div>
         <p className="muted">
-          They hit {sites.map((s) => `${s} ${pct(report.site_mix_smoothed[s])}`).join(" · ")}. Reads are right{" "}
-          {pct(acc)} of the time. Pick a call for each defense round.
+          They hit {sites.map((s) => `${s} ${pct(report.site_mix_smoothed[s])}`).join(" · ")} (close to the map average).
+          The read is confident in {pct(coverage)} of rounds and then right {pct(acc)} of the time. Pick a call for each
+          defense round.
         </p>
         <div className="rounds">
           {plan.map((p, i) => (

@@ -84,3 +84,19 @@ table.mix { width: 100%; border-collapse: collapse; font-size: 14px; }
 .leaks { padding-left: 18px; font-size: 14px; }
 details { margin-top: 12px; color: var(--muted); }
 pre { background: var(--panel-2); padding: 10px; border-radius: 8px; overflow-x: auto; }
+
+/* Call sheet */
+.callsheet h3 { margin: 0.5rem 0; }
+.cs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+.rules { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.6rem; }
+.rules li { line-height: 1.45; }
+.chip.call-rotate { background: #16a34a; color: #fff; }
+.chip.call-lean { background: #ca8a04; color: #fff; }
+.chip.conf-medium { background: #2563eb; color: #fff; }
+.chip.conf-low { background: #6b7280; color: #fff; }
+.callout { border-left: 3px solid #16a34a; padding: 0.5rem 0.75rem; margin-top: 1rem; }
+@media print {
+  nav, .noprint, .picker { display: none !important; }
+  body { background: #fff; color: #000; }
+  .card { border: none; box-shadow: none; }
+}
