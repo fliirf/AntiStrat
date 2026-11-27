@@ -1,22 +1,24 @@
+import Link from "next/link";
+
 const screens = [
-  { name: "Opponent report", desc: "Site habits and early-round tells" },
-  { name: "Tactics", desc: "Plan your setup round by round" },
-  { name: "Simulation timeline", desc: "Where your setup leaks, round by round" },
+  { href: "/tactics", name: "Call sheet & tactics", desc: "When to rotate: early utility and first-contact rules per map, checked on the newest matches." },
+  { href: "/report", name: "Opponent report", desc: "What stays true about them: pace, round 2 after pistol, retakes, with confidence." },
+  { href: "/simulation", name: "Simulation", desc: "5,000 simulated maps show where your plan costs win chance." },
 ];
 
 export default function Home() {
   return (
-    <main style={{ maxWidth: 960, margin: "0 auto", padding: "48px 16px" }}>
-      <h1 style={{ margin: 0 }}>
-        Anti<span style={{ color: "var(--accent)" }}>Strat</span>
+    <main className="page">
+      <h1 className="hero">
+        Anti<span>Strat</span>
       </h1>
-      <p style={{ color: "var(--muted)" }}>VALORANT Tactical Manager · Haven &amp; Lotus</p>
-      <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", marginTop: 32 }}>
+      <p className="muted lead">VALORANT Tactical Manager · prepare for Cloud9's VCT opponents, map by map</p>
+      <div className="cards">
         {screens.map((s) => (
-          <section key={s.name} style={{ background: "var(--panel)", borderRadius: 8, padding: 20 }}>
-            <h2 style={{ margin: "0 0 8px", fontSize: 18 }}>{s.name}</h2>
-            <p style={{ margin: 0, color: "var(--muted)" }}>{s.desc}</p>
-          </section>
+          <Link key={s.href} href={s.href} className="card link">
+            <h2>{s.name}</h2>
+            <p className="muted">{s.desc}</p>
+          </Link>
         ))}
       </div>
     </main>

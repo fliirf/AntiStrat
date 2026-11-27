@@ -1,0 +1,4 @@
+{
+  "_comment": "Optional per-map letter swaps after checking `pipeline sitecheck` against the in-game minimap, e.g. {\"lotus\": {\"A\": \"C\", \"C\": \"A\"}}. Letters only, no data. Re-run sites, features, train and report after editing.",
+  "maps": {}
+}
