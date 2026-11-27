@@ -3,8 +3,9 @@ import { Suspense } from "react";
 import Nav from "@/components/Nav";
 import Picker, { useSelection } from "@/components/Picker";
 import MiniMap from "@/components/MiniMap";
+import HeatMap from "@/components/HeatMap";
 import SampleBanner from "@/components/SampleBanner";
-import { cap, pct } from "@/lib/data";
+import { cap, pct, pretty } from "@/lib/data";
 import { useIndex, useReport } from "@/lib/useData";
 
 function ReportView() {
@@ -67,6 +68,67 @@ function ReportView() {
               ))}
             </ul>
           </section>
+
+          {report.operator && (
+            <section className="card">
+              <h2>Operator profile</h2>
+              <span className={`chip conf-${report.operator.confidence}`}>
+                {report.operator.confidence} confidence · {report.operator.n_op_kills} Op kills
+              </span>
+              <p>{report.operator.text}</p>
+              <table className="mix">
+                <thead>
+                  <tr><th>Side</th><th>Rounds opened with an Op kill</th><th>League</th><th>Round win after</th></tr>
+                </thead>
+                <tbody>
+                  {(["defense", "attack"] as const).map((s) => {
+                    const o = report.operator!.sides[s];
+                    return (
+                      <tr key={s}>
+                        <td>{cap(s)}</td>
+                        <td>{pct(o.op_open_rate)} <span className="muted small">of {o.rounds}</span></td>
+                        <td className="muted">{pct(o.league_rate)}</td>
+                        <td>{pct(o.win_after_op_open)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {Object.keys(report.operator.def_open_zones).length > 0 && (
+                <p className="muted">
+                  Defensive Op openings: {Object.entries(report.operator.def_open_zones)
+                    .sort((a, b) => b[1] - a[1]).map(([z, v]) => `${z} ${pct(v)}`).join(" · ")}
+                  {report.operator.one_player_share != null && ` · one player has ${pct(report.operator.one_player_share)} of their Op kills`}
+                </p>
+              )}
+              {index.op_validation?.[report.map] && !index.op_validation[report.map].stable && (
+                <p className="warn small">Across all teams, Op opening rates on this map did not hold steady between older and newer matches, so treat this as recent form, not a fixed habit.</p>
+              )}
+            </section>
+          )}
+
+          {report.utility && (
+            <section className="card span2">
+              <h2>Utility placement</h2>
+              <p className="muted">Where they cast from: attack utility in the first 15 s, defence utility in the first 30 s. Darker = more casts.</p>
+              <div className="heat-row">
+                {(["attack", "defense"] as const).map((s) => {
+                  const u = report.utility![s];
+                  return (
+                    <div key={s}>
+                      <h3>{cap(s)} · {u.casts} casts in {u.rounds} rounds</h3>
+                      <HeatMap cells={u.cells} grid={report.utility!.grid} bounds={report.utility!.bounds}
+                        centers={index.sites?.[report.map]?.centers} color={s === "attack" ? "#ff4655" : "#4aa3ff"}
+                        label={`${cap(s)} utility cast positions`} />
+                      <p className="muted small">
+                        Most used: {Object.entries(u.top_abilities).map(([a, v]) => `${pretty(a)} ${pct(v)}`).join(" · ") || "–"}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           <details className="card">
             <summary><h2 className="inline-h">Team-specific tells (exploratory)</h2></summary>

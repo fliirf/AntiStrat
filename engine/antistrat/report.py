@@ -18,6 +18,9 @@ from antistrat.adaptation import team_adaptation
 from antistrat.callsheet import map_call_sheet, opponent_traits
 from antistrat.edges import confident_read, find_edges, team_specific_gain, timing
 from antistrat.liveread import leaks, map_live_read, sim_calibration
+from antistrat.sim import Assumptions, impact as sim_impact
+from antistrat.scouting import op_profile, op_rounds, op_validation, util_bounds, util_map
+from antistrat.sites import load_centers
 from antistrat.model import FEATURE_SETS, _clf
 
 PRIOR_WEIGHT = 30.0  # walk-forward: a team's own site mix barely beats the map's, so shrink hard
@@ -113,8 +116,12 @@ def _edges_for(edges: pd.DataFrame, team: str, m: str) -> list[dict]:
 
 def build_reports(features: pd.DataFrame, metrics: dict, data_dir: Path, out_dir: Path,
                   target: str = "Cloud9", maps: list[str] | None = None, vct_only: bool = True,
-                  min_target_games: int = MIN_TARGET_GAMES) -> dict:
+                  min_target_games: int = MIN_TARGET_GAMES, extras: dict | None = None,
+                  centers: dict | None = None) -> dict:
+    """extras: optional {"kills", "casts", "def_casts"} tables for the Operator and utility sections."""
     names = load_team_names(data_dir)
+    extras = extras or {}
+    centers = load_centers() if centers is None else centers
     target_ids = {tid for tid, n in names.items() if n == target}
     scope = features[features["is_vct"]] if vct_only else features
     played = scope[scope["att"].isin(target_ids) | scope["dfn"].isin(target_ids)]
@@ -152,6 +159,19 @@ def build_reports(features: pd.DataFrame, metrics: dict, data_dir: Path, out_dir
         r = confident_read(d["pred_contact"], d["prob_contact"], d["site"], thresholds=(0.7,))[0]
         read_rule[m] = r
         index["call_sheet"][m]["confident_read"] = r
+
+    kills, casts, dcasts = extras.get("kills"), extras.get("casts"), extras.get("def_casts")
+    orounds = op_rounds(features, kills) if kills is not None else None
+    if orounds is not None:
+        index["op_validation"] = op_validation(orounds, list(oof))
+    ubounds = util_bounds(casts, dcasts, features, list(oof)) if casts is not None and dcasts is not None else {}
+
+    if extras.get("positions") is not None:
+        from antistrat.impact import measured_presence
+        index["sim_calibration"]["measured_presence"] = measured_presence(features, extras["positions"], centers)
+    assumptions = Assumptions.from_calibration(index["sim_calibration"])
+    assumptions_basis = ("Assumption: moving one defender to the right site is worth a quarter of a first-kill "
+                         "swing (measured from all rounds).")
 
     index["self"] = []  # the target scouted like an opponent: how readable are we?
     for team in opponents + sorted(target_ids):
@@ -199,6 +219,14 @@ def build_reports(features: pd.DataFrame, metrics: dict, data_dir: Path, out_dir
                 "economy": {"attack_win_rate": round(float((attack["winside"] == "attacker").mean()), 3),
                             "plant_rate": round(n / len(attack), 3)},
             }
+            if index["economy"]:
+                report["impact"] = {**sim_impact(report, index["economy"], assumptions),
+                                    "basis": assumptions_basis}
+            if orounds is not None:
+                report["operator"] = op_profile(orounds, kills, team, m, centers,
+                                                index["op_validation"].get(m, {}).get("stable", False))
+            if ubounds:
+                report["utility"] = util_map(casts, dcasts, features, team, m, ubounds)
             if team in target_ids:  # anti-read: what gives our own site away
                 report["leaks"] = leaks(features, target_ids, m, sites)
             (out_dir / f"{team}_{m}.json").write_text(json.dumps(report, indent=2) + "\n")

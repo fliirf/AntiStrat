@@ -13,8 +13,9 @@ CAST_FIELDS = ["series", "game", "round", "player", "ability", "t_rel",
                "x", "y", "z", "view_x", "view_y", "quality"]
 
 
-def extract_casts(supplement: Path, rounds: list[dict], window: float = EARLY_WINDOW_S) -> list[dict]:
-    """Casts by the attacking team within `window` seconds after freeze time ends."""
+def extract_casts(supplement: Path, rounds: list[dict], window: float = EARLY_WINDOW_S,
+                  side: str = "att") -> list[dict]:
+    """Casts by the attacking (side="att") or defending ("def") team within `window` s after freeze time."""
     by_game: dict[str, list[dict]] = defaultdict(list)
     for r in rounds:
         by_game[r["game"]].append(r)
@@ -36,7 +37,7 @@ def extract_casts(supplement: Path, rounds: list[dict], window: float = EARLY_WI
         t_rel = t - r["t0"]
         if t_rel > window or t > r["t_end"]:
             continue
-        if c.get("player_id") not in r["att_players"].split(";"):
+        if (c.get("player_id") in r["att_players"].split(";")) != (side == "att"):
             continue
         interp = c.get("interpolated") or {}
         pos, view = interp.get("position") or {}, interp.get("view") or {}

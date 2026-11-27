@@ -15,11 +15,24 @@ from sklearn.cluster import KMeans
 SITE_COUNTS = {"haven": 3, "lotus": 3}
 DEFAULT_SITE_COUNT = 2
 CENTERS_PATH = Path(__file__).parent / "data" / "site_centers.json"
+LETTERS_PATH = Path(__file__).parent / "site_letters.json"
+
+
+def letter_overrides(path: Path = LETTERS_PATH) -> dict[str, dict[str, str]]:
+    """Manual letter swaps per map (checked against the in-game minimap). Must be a permutation."""
+    if not path.exists():
+        return {}
+    maps = json.loads(path.read_text()).get("maps", {})
+    for m, sw in maps.items():
+        if sorted(sw) != sorted(sw.values()):
+            raise ValueError(f"site_letters.json: swaps for {m} must be a permutation, got {sw}")
+    return maps
 LETTERS = "ABC"
 
 
-def fit_sites(plants: dict[str, np.ndarray], seed: int = 0) -> dict:
+def fit_sites(plants: dict[str, np.ndarray], seed: int = 0, overrides: dict | None = None) -> dict:
     """plants: map -> (n, 2) array of plant x, y. Returns map -> site info."""
+    overrides = letter_overrides() if overrides is None else overrides
     out = {}
     for m, xy in plants.items():
         k = SITE_COUNTS.get(m, DEFAULT_SITE_COUNT)
@@ -36,7 +49,11 @@ def fit_sites(plants: dict[str, np.ndarray], seed: int = 0) -> dict:
             d = np.hypot(pts[:, 0] - c[0], pts[:, 1] - c[1])
             centers[letter] = [round(float(c[0]), 1), round(float(c[1]), 1)]
             stats[letter] = {"plants": int(len(pts)), "median_dist_m": round(float(np.median(d)) / 100, 2)}
-        out[m] = {"centers": centers, "stats": stats}
+        sw = overrides.get(m, {})
+        if sw:
+            centers = {sw.get(k, k): v for k, v in sorted(centers.items())}
+            stats = {sw.get(k, k): v for k, v in sorted(stats.items())}
+        out[m] = {"centers": dict(sorted(centers.items())), "stats": dict(sorted(stats.items()))}
     return out
 
 

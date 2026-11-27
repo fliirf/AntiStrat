@@ -5,6 +5,7 @@ import Nav from "@/components/Nav";
 import Picker, { useSelection } from "@/components/Picker";
 import SampleBanner from "@/components/SampleBanner";
 import CallSheetCard from "@/components/CallSheetCard";
+import ImpactCard from "@/components/ImpactCard";
 import { assumptions, cap, pct, planKey, readStats } from "@/lib/data";
 import { useIndex, useReport } from "@/lib/useData";
 
@@ -59,6 +60,7 @@ function TacticsView() {
     <>
       <SampleBanner show={index.is_sample} />
       <Picker index={index} />
+      <ImpactCard report={report} calibration={index.sim_calibration} />
       <CallSheetCard sheet={index.call_sheet?.[map]} report={report} />
       <section className="card noprint">
         <div className="row between">

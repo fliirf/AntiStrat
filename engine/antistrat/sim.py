@@ -192,3 +192,13 @@ def suggest_plan(report: dict, assumptions: Assumptions | None = None) -> list[s
     options = ["default", "read", *[f"stack:{s}" for s in mix]]
     best = max(options, key=lambda p: expected_shift(p, mix, acc, a, cov))
     return [best] * 24
+
+
+def impact(report: dict, economy: dict, a: Assumptions | None = None, n: int = 2000, seed: int = 0) -> dict:
+    """Map win chance on defence-first plans: default, rotate on read, stack the habit site."""
+    a = a or Assumptions()
+    mix = report["site_mix_smoothed"]
+    habit = max(mix, key=mix.get)
+    win = {name: simulate(report, economy, [plan] * 24, "defense", n, seed, a).map_win
+           for name, plan in (("default", "default"), ("read", "read"), ("habit_stack", f"stack:{habit}"))}
+    return {"map_win": win, "habit_site": habit}

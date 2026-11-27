@@ -93,6 +93,44 @@ export interface SimCalibration {
   n: number;
   extra_defender_value: number | null;
   rotation_share?: number;
+  measured_presence?: { extra_defender: number; ci95: [number, number]; n: number; design: string };
+}
+
+export interface OpSide {
+  rounds: number;
+  op_open_rate: number;
+  league_rate: number;
+  win_after_op_open: number | null;
+  n_op_open: number;
+}
+
+export interface OperatorProfile {
+  sides: { defense: OpSide; attack: OpSide };
+  def_open_zones: Record<string, number>;
+  one_player_share: number | null;
+  n_op_kills: number;
+  confidence: "low" | "medium";
+  text: string;
+}
+
+export interface UtilSide {
+  casts: number;
+  rounds: number;
+  cells: Record<string, number>;
+  top_abilities: Record<string, number>;
+}
+
+export interface UtilityMap {
+  grid: number;
+  bounds: [number, number, number, number];
+  attack: UtilSide;
+  defense: UtilSide;
+}
+
+export interface Impact {
+  map_win: { default: number; read: number; habit_stack: number };
+  habit_site: string;
+  basis: string;
 }
 
 export interface Report {
@@ -119,6 +157,9 @@ export interface Report {
   site_mix_note?: string;
   timing?: Timing;
   leaks?: Leak[];
+  operator?: OperatorProfile | null;
+  utility?: UtilityMap | null;
+  impact?: Impact;
   is_sample?: boolean;
 }
 
@@ -136,6 +177,7 @@ export interface Index {
   sim_calibration?: SimCalibration;
   self?: { id: string; name: string; maps: string[] }[];
   map_detail?: Record<string, { read_avg?: { early: number; contact: number } }>;
+  op_validation?: Record<string, { teams: number; r: number | null; p: number | null; stable: boolean }>;
 }
 
 export interface TimelineEntry {
@@ -190,6 +232,8 @@ export function readStats(report: Report): { acc: number; coverage: number } {
 
 export const pct = (x: number | null | undefined) => (x == null ? "–" : `${Math.round(x * 100)}%`);
 export const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** "dark-cover" -> "Dark cover" */
+export const pretty = (s: string) => cap(s.replace(/[-_]/g, " "));
 
 export function planKey(team: string, map: string) {
   return `antistrat.plan.${team}.${map}`;

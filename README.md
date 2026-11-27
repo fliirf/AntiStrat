@@ -8,7 +8,16 @@ Opponent-prep tool for VALORANT coaches, in the spirit of Football Manager. Buil
 - **Opponent report:** the traits that stay true about an opponent over time (pace, round 2 after a lost pistol,
   retakes), each with a confidence label.
 - **Tactics screen and match engine:** plan every round and see, over thousands of simulated maps, where the plan
-  costs win chance.
+  costs win chance, with an impact panel comparing the default, stacking the opponent's habit site, and rotating on
+  the read.
+- **Live read:** an analyst enters the early utility and the first contact and gets site probabilities and the call,
+  from a lookup table that ships as aggregates only.
+- **Operator profiler:** how often an opponent opens rounds with an Operator kill on each side, from where, and how
+  concentrated their Op is on one player, against the league.
+- **Utility placement:** where an opponent casts its early attack utility and its defensive utility, as heatmaps on
+  the site layout, with its most used abilities.
+- **Our readability (anti-read):** the same read pointed at Cloud9, and the signals that give Cloud9's site away
+  more than the league's.
 
 Scope: Cloud9's VCT 2025 opponents on the 7 maps where the read beats the baseline and Cloud9 played at least 3 times
 (Ascent, Corrode, Fracture, Haven, Icebox, Lotus, Pearl). Models train on all rounds (VCT + Game Changers).
@@ -59,6 +68,17 @@ python -m antistrat.pipeline all                 # extract -> sites -> features 
 | `features` | rounds, casts, site centres | `../antistrat-out/features.csv` |
 | `train` | features | models in `../antistrat-out/models/`, metrics in `engine/antistrat/data/model_metrics.json` |
 | `report` | features, models, `meta/teams.csv` | aggregate JSON in `web/public/aggregates/` |
+| `extras` | GRID feeds + ability supplement | `../antistrat-out/kills.csv` (weapons), `def_casts.csv`; run before `report` for the Operator and utility sections |
+| `positions` | GRID feeds | `../antistrat-out/positions.csv`: player positions at 20 s and at first contact |
+| `impact` | features, positions | prints the measured value of defender presence on the contested site (local only) |
+| `sitecheck` | features, site centres | `../antistrat-out/site_check/<map>.svg` to compare site letters with the in-game minimap |
+
+**Site letters.** Clusters get letters A/B/C by position. Open the `sitecheck` SVGs, compare with the in-game minimap,
+and if a map's letters are wrong, add a swap to `engine/antistrat/site_letters.json` (letters only, e.g.
+`{"maps": {"lotus": {"A": "C", "C": "A"}}}`), then re-run `sites`, `features`, `train`, `report`.
+
+**Cloud9 Game Changers.** `python -m antistrat.pipeline report --target "Cloud9 GC"` builds the same reports for
+Cloud9 GC's opponents (GC targets use all events, since their matches are Game Changers).
 
 `web/public/aggregates/` is filled by the `report` step on your machine and is git-ignored: everything derived from the
 GRID data stays local (license section 3(a)). Without it, `python engine/scripts/make_sample_aggregates.py` writes
