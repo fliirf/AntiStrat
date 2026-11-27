@@ -3,11 +3,24 @@
 Opponent-prep tool for VALORANT coaches, in the spirit of Football Manager. Built for the
 **Cloud9 × JetBrains "Sky's the Limit" 2026** hackathon, Category 1 (VALORANT Tactical Scouting).
 
-- **Opponent report:** habits and early-round *tells* (first-15-second utility, first contact) that give away the attack site.
-- **Tactics screen:** the coach plans round by round.
-- **Match engine:** Monte Carlo simulation of one map (round-read model + economy).
+- **Call sheet:** per-map rules a coach prepares before the match and executes in it: which early utility and
+  which first contact mean "rotate", how many seconds there are to react, and when to hold the default.
+- **Opponent report:** the traits that stay true about an opponent over time (pace, round 2 after a lost pistol,
+  retakes), each with a confidence label.
+- **Tactics screen and match engine:** plan every round and see, over thousands of simulated maps, where the plan
+  costs win chance.
 
-MVP scope: Haven + Lotus, opponents of Cloud9 GC.
+Scope: Cloud9's VCT 2025 opponents on the 7 maps where the read beats the baseline and Cloud9 played at least 3 times
+(Ascent, Corrode, Fracture, Haven, Icebox, Lotus, Pearl). Models train on all rounds (VCT + Game Changers).
+
+### What the data says (and why the product looks like this)
+Walk-forward tests on ~42,500 rounds:
+- A team's own site mix does **not** predict its next rounds better than the map average, and updating on earlier
+  rounds of the same game makes it worse. So the tool does not tell coaches to stack a site on habit.
+- The **in-round read** does work: early utility and first contact lift site prediction 7–25 points over the
+  baseline. When the read is confident (≥ 70%), it is right 76–82% of the time, in 33–68% of rounds.
+- First contact comes ~22–28 s before the plant, so there is time to act on it.
+- Team-specific tells did not beat the map-wide read; opponent traits are limited to the ones that held up.
 
 ## Layout
 
@@ -50,8 +63,8 @@ python -m antistrat.pipeline all                 # extract -> sites -> features 
 | `train` | features | models in `../antistrat-out/models/`, metrics in `engine/antistrat/data/model_metrics.json` |
 | `report` | features, models, `meta/teams.csv` | aggregate JSON in `web/public/aggregates/` |
 
-Until the real run, `web/public/aggregates/` holds synthetic sample data
-(`python engine/scripts/make_sample_aggregates.py`) and the UI shows a "Sample data" banner.
+`web/public/aggregates/` holds the real-data aggregates (shares, counts, accuracies, rules; no rows). Without them,
+`python engine/scripts/make_sample_aggregates.py` writes synthetic sample data and the UI shows a "Sample data" banner.
 
 ### Method in short
 - **Sites:** GRID has no site field, so plants are clustered per map (KMeans, 3 sites on Haven and Lotus).
@@ -61,9 +74,12 @@ Until the real run, `web/public/aggregates/` holds synthetic sample data
   map's most common site. Per-team accuracy in reports is out-of-fold (grouped by series).
 - **Adaptation** between rounds (repeat site after a loss vs a win) is shown only when a Fisher test survives
   Benjamini-Hochberg correction across teams.
+- **Call sheet rules** are learned on the older 80% of series per map and re-measured on the newest 20%; a rule that
+  falls below 60% there is dropped. **Edges** (situational habits, opponent traits) are discovered on a team's older
+  games and kept only when edges of that kind hold their sign on its newer games (`engine/antistrat/edges.py`).
 - **Match engine:** Monte Carlo over one map with buy logic and an economy model fitted on loadout values; the coach's
-  call per defense round (default, play the read, stack a site) shifts win probability by explicit, adjustable
-  assumptions (`engine/antistrat/sim.py`).
+  call per defense round (default, rotate on a confident read, stack a site) shifts win probability by explicit,
+  adjustable assumptions (`engine/antistrat/sim.py`).
 - **Scope:** reports cover Cloud9's VCT 2025 opponents; the models train on all rounds (VCT + Game Changers).
   A map is trained when it has 300+ planted rounds, and scouted when the read beats the baseline and Cloud9 played it
   at least 3 times in VCT 2025.

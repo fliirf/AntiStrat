@@ -1,9 +1,9 @@
 import Link from "next/link";
 
 const screens = [
-  { href: "/report", name: "Opponent report", desc: "Site habits and the early-round tells that give away the hit." },
-  { href: "/tactics", name: "Tactics", desc: "Make a call for every defense round: default, play the read, or stack a site." },
-  { href: "/simulation", name: "Simulation", desc: "5,000 simulated maps show where your setup leaks." },
+  { href: "/tactics", name: "Call sheet & tactics", desc: "When to rotate: early utility and first-contact rules per map, checked on the newest matches." },
+  { href: "/report", name: "Opponent report", desc: "What stays true about them: pace, round 2 after pistol, retakes, with confidence." },
+  { href: "/simulation", name: "Simulation", desc: "5,000 simulated maps show where your plan costs win chance." },
 ];
 
 export default function Home() {
