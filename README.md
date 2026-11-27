@@ -72,6 +72,7 @@ python -m antistrat.pipeline all                 # extract -> sites -> features 
 | `positions` | GRID feeds | `../antistrat-out/positions.csv`: player positions at 20 s and at first contact |
 | `impact` | features, positions | prints the measured value of defender presence on the contested site (local only) |
 | `sitecheck` | features, site centres | `../antistrat-out/site_check/<map>.svg` to compare site letters with the in-game minimap |
+| `measure` | features, positions (every 2 s and at the plant), casts | `web/public/aggregates/measured.json` (git-ignored): lead time of the read vs the defence committing, headroom at the plant, value of a defender on site at the plant (calibrates the match engine), utility leaks per ability. Run after `positions` and before `report` |
 
 **Site letters.** Clusters get letters A/B/C by position. Open the `sitecheck` SVGs, compare with the in-game minimap,
 and if a map's letters are wrong, add a swap to `engine/antistrat/site_letters.json` (letters only, e.g.

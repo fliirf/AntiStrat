@@ -169,9 +169,22 @@ def build_reports(features: pd.DataFrame, metrics: dict, data_dir: Path, out_dir
     if extras.get("positions") is not None:
         from antistrat.impact import measured_presence
         index["sim_calibration"]["measured_presence"] = measured_presence(features, extras["positions"], centers)
+    meas = extras.get("measured")
+    if meas:
+        pp = meas["plant_position"]["extra_defender_near_site"]
+        index["measured"] = {k: meas[k] for k in ("lead_time", "headroom", "plant_position", "definitions")}
+        if pp["lo"] > 0:  # use the measured value only when its interval excludes zero
+            index["sim_calibration"]["measured_value"] = pp["est"]
+        for m, ul in meas.get("utility_leaks", {}).items():
+            if m in index["call_sheet"]:
+                index["call_sheet"][m]["utility_leaks"] = [x for x in ul if x["held"]][:4]
     assumptions = Assumptions.from_calibration(index["sim_calibration"])
-    assumptions_basis = ("Assumption: moving one defender to the right site is worth a quarter of a first-kill "
-                         "swing (measured from all rounds).")
+    assumptions_basis = (
+        "Measured: one more defender on the site at the plant changes the defence win chance by this much "
+        "(alive counts and loadouts held fixed); a right call adds one there, a wrong call takes one away."
+        if index["sim_calibration"].get("measured_value") else
+        "Assumption: moving one defender to the right site is worth a quarter of a first-kill swing "
+        "(measured from all rounds).")
 
     index["self"] = []  # the target scouted like an opponent: how readable are we?
     for team in opponents + sorted(target_ids):
@@ -227,6 +240,9 @@ def build_reports(features: pd.DataFrame, metrics: dict, data_dir: Path, out_dir
                                                 index["op_validation"].get(m, {}).get("stable", False))
             if ubounds:
                 report["utility"] = util_map(casts, dcasts, features, team, m, ubounds)
+                if report["utility"]:
+                    from antistrat.measured import team_utility_leaks
+                    report["utility"]["leaks"] = team_utility_leaks(features, casts, centers, team, m)
             if team in target_ids:  # anti-read: what gives our own site away
                 report["leaks"] = leaks(features, target_ids, m, sites)
             (out_dir / f"{team}_{m}.json").write_text(json.dumps(report, indent=2) + "\n")
