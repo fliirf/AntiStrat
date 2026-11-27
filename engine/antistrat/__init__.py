@@ -1,0 +1,1 @@
+"""AntiStrat engine."""
