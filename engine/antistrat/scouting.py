@@ -19,6 +19,7 @@ ZONE_M = 20.0          # an Op kill within this many metres of a site centre cou
 GRID = 16              # utility heatmap cells per side
 MIN_CELL = 3           # cells with fewer casts are left out (noise, and keeps files small)
 MIN_TEAM_ROUNDS = 20
+MIN_OP_KILLS = 15
 
 
 def _rounds(features: pd.DataFrame) -> pd.DataFrame:
@@ -91,7 +92,9 @@ def op_profile(orounds: pd.DataFrame, kills: pd.DataFrame, team: str, m: str, ce
                & kills["game"].isin(t["game"].unique())]
     top_share = round(float(tk["killer"].value_counts(normalize=True).iloc[0]), 3) if len(tk) >= 10 else None
     rate, ref = sides["defense"]["op_open_rate"], sides["defense"]["league_rate"]
-    conf = "medium" if stable and sides["defense"]["rounds"] >= 40 else "low"
+    # Medium only when Op openings are stable league-wide on this map and this team gives enough to go on.
+    conf = ("medium" if stable and sides["defense"]["rounds"] >= 40 and len(tk) >= MIN_OP_KILLS
+            and sides["defense"]["n_op_open"] >= 5 else "low")
     text = (f"On defence they open {rate:.0%} of rounds with an Operator kill (league {ref:.0%})"
             + (f"; {max(zones, key=zones.get)} is their most common Op opening spot." if zones else "."))
     return {"sides": sides, "def_open_zones": zones, "one_player_share": top_share, "n_op_kills": int(len(tk)),
