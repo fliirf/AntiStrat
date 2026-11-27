@@ -21,6 +21,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix, log_loss
 from antistrat.features import CONTACT_COLS, EARLY_COLS
 
 MVP_MAPS = ["haven", "lotus"]
+MIN_MAP_PLANTS = 300  # maps with fewer planted rounds are too thin to train on
 FEATURE_SETS = {"early": EARLY_COLS, "contact": CONTACT_COLS}
 
 
@@ -85,8 +86,15 @@ def train_economy(df: pd.DataFrame) -> dict:
             "attack_win_rate": round(float(y.mean()), 4), "n": int(len(d))}
 
 
+def trainable_maps(features: pd.DataFrame, min_plants: int = MIN_MAP_PLANTS) -> list[str]:
+    counts = features[features["site"].notna()].groupby("map").size()
+    return sorted(m for m, n in counts.items() if m and n >= min_plants)
+
+
 def train_all(features: pd.DataFrame, out_dir: Path, metrics_path: Path,
-              maps: list[str] = MVP_MAPS) -> dict:
+              maps: list[str] | None = None, min_plants: int = MIN_MAP_PLANTS) -> dict:
+    """Train every map with enough planted rounds (or the given maps)."""
+    maps = maps if maps is not None else trainable_maps(features, min_plants)
     out_dir.mkdir(parents=True, exist_ok=True)
     result = {"maps": {}, "economy": train_economy(features)}
     for m in maps:

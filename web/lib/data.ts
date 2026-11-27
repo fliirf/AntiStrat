@@ -37,6 +37,7 @@ export interface Index {
   scope: string;
   generated_at: string;
   is_sample?: boolean;
+  maps?: string[];
   opponents: { id: string; name: string; maps: string[] }[];
   metrics: Record<string, { baseline_acc: number; early: { acc: number }; contact: { acc: number }; n_test: number }>;
   sites?: Record<string, { centers: Record<string, [number, number]> }>;

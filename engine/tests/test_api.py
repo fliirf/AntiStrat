@@ -11,7 +11,8 @@ def test_health():
 
 
 def test_maps():
-    assert client.get("/maps").json() == {"maps": ["haven", "lotus"]}
+    maps = client.get("/maps").json()["maps"]
+    assert isinstance(maps, list) and maps
 
 
 @pytest.fixture
@@ -38,6 +39,7 @@ def test_rejects_bad_input(api_with_data):
     opp = api_with_data["opponents"][0]
     assert client.get("/report/..%2Fetc/haven").status_code in (400, 404)
     assert client.get(f"/report/{opp['id']}/ascent").status_code == 400
+    assert client.get("/maps").json()["maps"] == api_with_data["maps"]
     r = client.post("/simulate", json={"team": opp["id"], "map": opp["maps"][0], "plan": ["stack:Z"]})
     assert r.status_code == 400
 

@@ -22,7 +22,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MVP_MAPS = ["haven", "lotus"]
+DEFAULT_MAPS = ["haven", "lotus"]
 _ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
@@ -37,8 +37,15 @@ def _read(name: str) -> dict:
     return json.loads(path.read_text())
 
 
+def _maps() -> list[str]:
+    path = agg_dir() / "index.json"
+    if path.exists():
+        return json.loads(path.read_text()).get("maps") or DEFAULT_MAPS
+    return DEFAULT_MAPS
+
+
 def _report(team: str, map_name: str) -> dict:
-    if not _ID.match(team) or map_name not in MVP_MAPS:
+    if not _ID.match(team) or not _ID.match(map_name) or map_name not in _maps():
         raise HTTPException(400, "bad team or map")
     return _read(f"{team}_{map_name}.json")
 
@@ -50,7 +57,7 @@ def health() -> dict:
 
 @app.get("/maps")
 def maps() -> dict:
-    return {"maps": MVP_MAPS}
+    return {"maps": _maps()}
 
 
 @app.get("/index")

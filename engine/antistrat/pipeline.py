@@ -25,7 +25,7 @@ from antistrat.extract.rounds import ROUND_FIELDS, extract_series
 from antistrat.extract.utility import CAST_FIELDS, extract_casts
 from antistrat.features import build_features
 from antistrat.grid import feed_path, is_vct, read_series_index, supplement_path
-from antistrat.model import train_all
+from antistrat.model import MIN_MAP_PLANTS, train_all
 from antistrat.report import build_reports
 from antistrat.sites import CENTERS_PATH, fit_sites, load_centers, save_centers
 
@@ -93,8 +93,8 @@ def _features_df(out_dir: Path) -> pd.DataFrame:
                                                         "winner": str, "att_players": str})
 
 
-def train(out_dir: Path = OUT_DIR, metrics_path: Path = METRICS_PATH) -> dict:
-    result = train_all(_features_df(out_dir), out_dir / "models", metrics_path)
+def train(out_dir: Path = OUT_DIR, metrics_path: Path = METRICS_PATH, min_plants: int = MIN_MAP_PLANTS) -> dict:
+    result = train_all(_features_df(out_dir), out_dir / "models", metrics_path, min_plants=min_plants)
     for m, d in result["maps"].items():
         print(f"{m}: baseline {d['baseline_acc']:.1%}, early {d['early']['acc']:.1%}, "
               f"contact {d['contact']['acc']:.1%} (test n={d['n_test']})")
@@ -104,10 +104,11 @@ def train(out_dir: Path = OUT_DIR, metrics_path: Path = METRICS_PATH) -> dict:
 
 def report(out_dir: Path = OUT_DIR, data_dir: Path = DATA_DIR, metrics_path: Path = METRICS_PATH,
            agg_dir: Path = AGGREGATES_DIR, target: str = "Cloud9",
-           centers_path: Path = CENTERS_PATH) -> dict:
+           centers_path: Path = CENTERS_PATH, min_target_games: int = 3) -> dict:
     import json
     metrics = json.loads(metrics_path.read_text())
-    index = build_reports(_features_df(out_dir), metrics, data_dir, agg_dir, target=target)
+    index = build_reports(_features_df(out_dir), metrics, data_dir, agg_dir, target=target,
+                          min_target_games=min_target_games)
     # Site centres (aggregate coordinates) let the UI draw a schematic minimap.
     if centers_path.exists():
         index["sites"] = json.loads(centers_path.read_text())

@@ -12,7 +12,7 @@ export default function Home() {
       <h1 className="hero">
         Anti<span>Strat</span>
       </h1>
-      <p className="muted lead">VALORANT Tactical Manager · prepare for Cloud9's opponents on Haven and Lotus</p>
+      <p className="muted lead">VALORANT Tactical Manager · prepare for Cloud9's VCT opponents, map by map</p>
       <div className="cards">
         {screens.map((s) => (
           <Link key={s.href} href={s.href} className="card link">

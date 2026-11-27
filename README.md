@@ -65,6 +65,8 @@ Until the real run, `web/public/aggregates/` holds synthetic sample data
   call per defense round (default, play the read, stack a site) shifts win probability by explicit, adjustable
   assumptions (`engine/antistrat/sim.py`).
 - **Scope:** reports cover Cloud9's VCT 2025 opponents; the models train on all rounds (VCT + Game Changers).
+  A map is trained when it has 300+ planted rounds, and scouted when the read beats the baseline and Cloud9 played it
+  at least 3 times in VCT 2025.
 
 ## Run locally
 

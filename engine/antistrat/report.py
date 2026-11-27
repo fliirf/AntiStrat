@@ -15,10 +15,11 @@ import pandas as pd
 from sklearn.model_selection import GroupKFold
 
 from antistrat.adaptation import team_adaptation
-from antistrat.model import FEATURE_SETS, MVP_MAPS, _clf
+from antistrat.model import FEATURE_SETS, _clf
 
 PRIOR_WEIGHT = 5.0
 MIN_TELL_N = 5
+MIN_TARGET_GAMES = 3  # only scout maps the target team actually plays
 
 
 def load_team_names(data_dir: Path) -> dict[str, str]:
@@ -83,19 +84,26 @@ def _tells(team_rounds: pd.DataFrame, sites: list[str]) -> list[dict]:
 
 
 def build_reports(features: pd.DataFrame, metrics: dict, data_dir: Path, out_dir: Path,
-                  target: str = "Cloud9", maps: list[str] = MVP_MAPS, vct_only: bool = True) -> dict:
+                  target: str = "Cloud9", maps: list[str] | None = None, vct_only: bool = True,
+                  min_target_games: int = MIN_TARGET_GAMES) -> dict:
     names = load_team_names(data_dir)
     target_ids = {tid for tid, n in names.items() if n == target}
     scope = features[features["is_vct"]] if vct_only else features
     played = scope[scope["att"].isin(target_ids) | scope["dfn"].isin(target_ids)]
     opponents = sorted((set(played["att"]) | set(played["dfn"])) - target_ids)
+    if maps is None:
+        # Maps where the read beats guessing the usual site and the target plays often enough.
+        target_games = played.groupby("map")["game"].nunique()
+        maps = sorted(m for m, d in metrics.get("maps", {}).items()
+                      if d["contact"]["acc"] > d["baseline_acc"]
+                      and target_games.get(m, 0) >= min_target_games)
 
     adapt = team_adaptation(features)
     oof = {m: oof_predictions(features, m) for m in maps if (features["map"] == m).any()}
     out_dir.mkdir(parents=True, exist_ok=True)
     index = {"target": target, "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
              "scope": "VCT" if vct_only else "all", "metrics": metrics.get("maps", {}),
-             "economy": metrics.get("economy", {}), "opponents": []}
+             "economy": metrics.get("economy", {}), "maps": [], "opponents": []}
 
     for team in opponents:
         entry = {"id": team, "name": names.get(team, team), "maps": []}
@@ -138,5 +146,6 @@ def build_reports(features: pd.DataFrame, metrics: dict, data_dir: Path, out_dir
             entry["maps"].append(m)
         if entry["maps"]:
             index["opponents"].append(entry)
+    index["maps"] = sorted({m for o in index["opponents"] for m in o["maps"]})
     (out_dir / "index.json").write_text(json.dumps(index, indent=2) + "\n")
     return index

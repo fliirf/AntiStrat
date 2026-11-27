@@ -25,8 +25,9 @@ def main() -> None:
         pipeline.extract(data, out, workers=1)
         pipeline.sites(out, out / "centers.json")
         pipeline.features(out, out / "centers.json")
-        pipeline.train(out, out / "metrics.json")
-        pipeline.report(out, data, out / "metrics.json", AGGREGATES_DIR, centers_path=out / "centers.json")
+        pipeline.train(out, out / "metrics.json", min_plants=20)
+        pipeline.report(out, data, out / "metrics.json", AGGREGATES_DIR, centers_path=out / "centers.json",
+                        min_target_games=1)
     for f in AGGREGATES_DIR.glob("*.json"):
         d = json.loads(f.read_text())
         d["is_sample"] = True

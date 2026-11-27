@@ -32,6 +32,6 @@ def trained(pipeline_out, synth_data, tmp_path_factory):
     out, _ = pipeline_out
     metrics_path = out / "model_metrics.json"
     agg = tmp_path_factory.mktemp("agg")
-    metrics = pipeline.train(out, metrics_path)
-    index = pipeline.report(out, synth_data, metrics_path, agg)
+    metrics = pipeline.train(out, metrics_path, min_plants=20)
+    index = pipeline.report(out, synth_data, metrics_path, agg, min_target_games=1)
     return metrics, index, agg
