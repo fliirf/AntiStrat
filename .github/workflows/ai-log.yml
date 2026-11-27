@@ -1,0 +1,33 @@
+name: ai-log
+on:
+  pull_request:
+    types: [closed]
+permissions:
+  contents: write
+jobs:
+  capture:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+      - name: Turn the PR's "AI usage" section into a log entry
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_MERGED_AT: ${{ github.event.pull_request.merged_at }}
+        run: |
+          python3 scripts/ai-log/pr_to_entry.py
+          python3 scripts/ai-log/summarize.py
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/ai-workflow
+          git diff --cached --quiet && exit 0
+          scripts/check-no-data.sh
+          git commit -m "ai-log: capture PR #${{ github.event.pull_request.number }}"
+          git push
