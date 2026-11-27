@@ -127,6 +127,19 @@ function ReportView() {
                   );
                 })}
               </div>
+              {(report.utility.leaks ?? []).length > 0 && (
+                <>
+                  <h3>Their utility that gives the site away</h3>
+                  <ul className="tells">
+                    {report.utility.leaks!.map((l, i) => (
+                      <li key={i}>
+                        <strong>{l.agent ? `${l.agent}: ` : ""}{pretty(l.ability)} aimed at {l.site} in the first 15 s</strong>
+                        <div className="muted">→ they plant {l.site} {pct(l.rate)} of the time (map average {pct(l.base)}) · {l.n} rounds</div>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
             </section>
           )}
 

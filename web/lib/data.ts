@@ -49,12 +49,61 @@ export interface Timing {
   n: number;
 }
 
+export interface UtilityLeak {
+  ability: string;
+  agent: string | null;
+  site: string;
+  n_older: number;
+  rate_older: number;
+  base_older: number;
+  lift: number;
+  n_newer: number;
+  rate_newer: number | null;
+  base_newer: number;
+  held: boolean;
+}
+
+export interface TeamLeak {
+  ability: string;
+  agent: string | null;
+  site: string;
+  n: number;
+  rate: number;
+  base: number;
+}
+
+export interface Est {
+  est: number;
+  lo: number;
+  hi: number;
+  n: number;
+}
+
+export interface Measured {
+  lead_time: {
+    rounds: number;
+    confident_correct_share: Est;
+    false_alarm_share: Est;
+    majority: { median_lead_s: Est; read_first_share: Est; never_committed_before_plant: Est;
+      committed_median_lead_s?: Est; committed_read_first_share?: Est;
+      per_map: Record<string, { median_lead_s: number; read_first_share: number; n: number }> };
+    shift: { median_lead_s: Est; read_first_share: Est; never_committed_before_plant: Est };
+    read_time_median_s: number | null;
+    plant_time_median_s: number | null;
+  };
+  headroom: { rounds_read_right: number; misaligned_share: Est; def_win_aligned: Est; def_win_misaligned: Est;
+    aligned_effect_adjusted: Est; note: string };
+  plant_position: { extra_defender_near_site: Est; by_defenders_near_site: Record<string, { def_win: number; n: number }> };
+  definitions: { near_site_m: number; confident: number; early_read_ready_s: number };
+}
+
 export interface CallSheet {
   map: string;
   rules: CallRule[];
   timing: Timing;
   fallback: string;
   confident_read?: ReadRule;
+  utility_leaks?: UtilityLeak[];
   n_older: number;
   n_newer: number;
 }
@@ -120,11 +169,16 @@ export interface UtilSide {
   top_abilities: Record<string, number>;
 }
 
+export interface UtilityMapLeaks {
+  leaks?: TeamLeak[];
+}
+
 export interface UtilityMap {
   grid: number;
   bounds: [number, number, number, number];
   attack: UtilSide;
   defense: UtilSide;
+  leaks?: TeamLeak[];
 }
 
 export interface Impact {
@@ -177,6 +231,7 @@ export interface Index {
   sim_calibration?: SimCalibration;
   self?: { id: string; name: string; maps: string[] }[];
   map_detail?: Record<string, { read_avg?: { early: number; contact: number } }>;
+  measured?: Measured;
   op_validation?: Record<string, { teams: number; r: number | null; p: number | null; stable: boolean }>;
 }
 

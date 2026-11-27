@@ -12,6 +12,7 @@ from antistrat.grid import read_jsonl_zst, ts
 
 POSITION_FIELDS = ["series", "game", "round", "snap", "t", "def_pos", "att_pos"]
 SNAP_T = 20.0
+TIMELINE = tuple(range(10, 102, 2))  # s10, s12, ... until the plant (none after it)
 
 
 def _update(pos: dict, state: dict, gid: str | None) -> None:
@@ -25,7 +26,8 @@ def _update(pos: dict, state: dict, gid: str | None) -> None:
                     pos[p["id"]] = (float(xy["x"]), float(xy["y"]))
 
 
-def extract_positions(path: Path) -> list[dict]:
+def extract_positions(path: Path, timeline: bool = False) -> list[dict]:
+    """Snapshots t20 and fk; with timeline=True also every 2 s from 10 s until the plant, and at the plant."""
     sid = path.name.split("_")[1]
     rows, rolled = [], set()
     pos: dict[str, tuple[float, float]] = {}
@@ -55,13 +57,23 @@ def extract_positions(path: Path) -> list[dict]:
                     segs = g.get("segments") or []
                     if segs:
                         rn = segs[-1].get("sequenceNumber")
-                cur = {"game": gid, "round": rn, "t0": t, "def": defenders, "att": attackers, "dead": set(), "snaps": {}}
+                cur = {"game": gid, "round": rn, "t0": t, "def": defenders, "att": attackers, "dead": set(), "snaps": {},
+                       "planted": False, "next": 0}
             if cur is None:
                 continue
             rel = t - cur["t0"]
             if "t20" not in cur["snaps"] and rel >= SNAP_T:
                 cur["snaps"]["t20"] = (round(rel, 2), _alive(cur, pos), _alive(cur, pos, "att"))
+            while timeline and not cur["planted"] and cur["next"] < len(TIMELINE) and rel >= TIMELINE[cur["next"]]:
+                # State as of just before this event: the latest positions at that second.
+                cur["snaps"][f"s{TIMELINE[cur['next']]}"] = (float(TIMELINE[cur["next"]]), _alive(cur, pos),
+                                                              _alive(cur, pos, "att"))
+                cur["next"] += 1
             _update(pos, ss, cur["game"])  # the kill event's own state: positions at the moment of contact
+            if ty == "player-completed-plantBomb" and not cur["planted"]:
+                cur["planted"] = True
+                if timeline:
+                    cur["snaps"]["plant"] = (round(rel, 2), _alive(cur, pos), _alive(cur, pos, "att"))
             if ty == "player-killed-player":
                 if "fk" not in cur["snaps"]:
                     cur["snaps"]["fk"] = (round(rel, 2), _alive(cur, pos), _alive(cur, pos, "att"))

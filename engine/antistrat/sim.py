@@ -40,6 +40,11 @@ class Assumptions:
 
     @classmethod
     def from_calibration(cls, cal: dict | None) -> "Assumptions":
+        if cal and cal.get("measured_value"):
+            # Measured: one more defender on the site at the plant (alive counts and loadouts held fixed).
+            # A right call puts one there, a wrong one pulls one away; a stack works the same way.
+            v = round(float(cal["measured_value"]), 3)
+            return cls(stack_gain=v, stack_cost=v, read_gain=v, read_cost=v)
         if not cal or not cal.get("extra_defender_value"):
             return cls()
         v = float(cal["extra_defender_value"])

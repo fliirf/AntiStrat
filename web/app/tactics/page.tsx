@@ -60,7 +60,7 @@ function TacticsView() {
     <>
       <SampleBanner show={index.is_sample} />
       <Picker index={index} />
-      <ImpactCard report={report} calibration={index.sim_calibration} />
+      <ImpactCard report={report} index={index} />
       <CallSheetCard sheet={index.call_sheet?.[map]} report={report} />
       <section className="card noprint">
         <div className="row between">

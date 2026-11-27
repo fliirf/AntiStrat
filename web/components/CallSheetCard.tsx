@@ -1,5 +1,5 @@
 import type { CallSheet, Report } from "@/lib/data";
-import { cap, pct } from "@/lib/data";
+import { cap, pct, pretty } from "@/lib/data";
 
 const secs = (x: number | null | undefined) => (x == null ? "–" : `${Math.round(x)} s`);
 
@@ -35,7 +35,9 @@ export default function CallSheetCard({ sheet, report }: { sheet?: CallSheet; re
 
         <div>
           <h3>0–15 s: early utility</h3>
-          {early.length === 0 && <p className="muted">No utility pattern strong enough on this map.</p>}
+          {early.length === 0 && !(sheet.utility_leaks ?? []).length && (
+            <p className="muted">No utility pattern strong enough on this map.</p>
+          )}
           <ul className="rules">
             {early.map((r, i) => (
               <li key={i}>
@@ -46,6 +48,21 @@ export default function CallSheetCard({ sheet, report }: { sheet?: CallSheet; re
               </li>
             ))}
           </ul>
+
+          {(sheet.utility_leaks ?? []).length > 0 && (
+            <>
+              <h3>Utility that gives the site away</h3>
+              <ul className="rules">
+                {sheet.utility_leaks!.map((l, i) => (
+                  <li key={i}>
+                    <span className="chip">{l.agent ? `${l.agent} · ` : ""}{pretty(l.ability)} → {l.site}</span>{" "}
+                    <strong>{l.site} {pct(l.rate_newer)}</strong> vs {pct(l.base_newer)} usually{" "}
+                    <span className="muted small">({l.n_newer} newer rounds)</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
 
         <div>

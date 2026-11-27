@@ -13,6 +13,7 @@ Only site_centers.json (cluster centres) is written inside the repo.
     python -m antistrat.pipeline impact                 # measured value of a defender on site
     python -m antistrat.pipeline extras [--limit N]     # kills with weapons + defender utility (local only)
     python -m antistrat.pipeline sitecheck              # SVG per map to check site letters (local only)
+    python -m antistrat.pipeline measure                # measured impact studies (needs positions; run before report)
 """
 from __future__ import annotations
 
@@ -74,7 +75,7 @@ def _positions_one(args: tuple[str, Path]) -> list[dict]:
     from antistrat.extract.positions import extract_positions
     sid, data_dir = args
     feed = feed_path(sid, data_dir)
-    return extract_positions(feed) if feed.exists() else []
+    return extract_positions(feed, timeline=True) if feed.exists() else []
 
 
 def positions(data_dir: Path = DATA_DIR, out_dir: Path = OUT_DIR, limit: int | None = None,
@@ -90,7 +91,7 @@ def positions(data_dir: Path = DATA_DIR, out_dir: Path = OUT_DIR, limit: int | N
             results = pool.map(_positions_one, jobs)
     df = pd.DataFrame([r for rs in results for r in rs], columns=POSITION_FIELDS)
     df.to_csv(out_dir / "positions.csv", index=False)
-    print(f"{len(df)} defender snapshots from {len(jobs)} series -> {out_dir}")
+    print(f"{len(df)} position snapshots from {len(jobs)} series -> {out_dir}")
     return df
 
 
@@ -127,6 +128,32 @@ def extras(data_dir: Path = DATA_DIR, out_dir: Path = OUT_DIR, limit: int | None
     dcasts.to_csv(out_dir / "def_casts.csv", index=False)
     print(f"{len(kills)} kills, {len(dcasts)} defender casts from {len(jobs)} series -> {out_dir}")
     return kills, dcasts
+
+
+def measure(out_dir: Path = OUT_DIR, centers_path: Path = CENTERS_PATH, agg_dir: Path = AGGREGATES_DIR,
+            reps: int = 200) -> dict:
+    """Measured impact studies -> web/public/aggregates/measured.json (git-ignored, local only)."""
+    import json
+    from antistrat import measured as ms
+    from antistrat.report import oof_predictions
+    centers = load_centers(centers_path)
+    feats = _features_df(out_dir)
+    metrics = json.loads(METRICS_PATH.read_text()) if METRICS_PATH.exists() else {"maps": {}}
+    maps = [m for m in metrics.get("maps", {}) if m in centers]
+    feats = feats[feats["map"].isin(maps)]
+    pos = pd.read_csv(out_dir / "positions.csv", dtype={"series": str, "game": str})
+    casts = pd.read_csv(out_dir / "casts.csv", dtype={"series": str, "game": str, "player": str})
+    oof = {m: oof_predictions(feats, m) for m in maps}
+    tl = ms.round_timeline(feats, pos, centers)
+    reads = pd.concat([ms.read_times(o) for o in oof.values()], ignore_index=True)
+    p = ms.at_plant(tl)
+    result = {"lead_time": ms.lead_time(feats, tl, oof, reps), "headroom": ms.headroom(p, reads, reps),
+              "plant_position": ms.plant_position_value(p, reps), "utility_leaks": ms.utility_leaks(feats, casts, centers),
+              "definitions": {"near_site_m": ms.NEAR_M, "confident": ms.CONF, "early_read_ready_s": ms.EARLY_READY_S}}
+    agg_dir.mkdir(parents=True, exist_ok=True)
+    (agg_dir / "measured.json").write_text(json.dumps(result, indent=2) + "\n")
+    print(json.dumps({k: v for k, v in result.items() if k != "utility_leaks"}, indent=2))
+    return result
 
 
 def sitecheck(out_dir: Path = OUT_DIR, centers_path: Path = CENTERS_PATH) -> list[Path]:
@@ -198,6 +225,10 @@ def report(out_dir: Path = OUT_DIR, data_dir: Path = DATA_DIR, metrics_path: Pat
                           ("def_casts", "def_casts.csv", {"series": str, "game": str, "player": str})):
         if (out_dir / name).exists():
             extras[key] = pd.read_csv(out_dir / name, dtype=dt)
+    if (agg_dir / "measured.json").exists():
+        extras["measured"] = json.loads((agg_dir / "measured.json").read_text())
+    else:
+        print("note: run `pipeline measure` for measured impact numbers")
     if (out_dir / "positions.csv").exists():
         extras["positions"] = pd.read_csv(out_dir / "positions.csv", dtype={"series": str, "game": str})
     if "kills" not in extras or "def_casts" not in extras:
@@ -216,7 +247,7 @@ def report(out_dir: Path = OUT_DIR, data_dir: Path = DATA_DIR, metrics_path: Pat
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("step", choices=["extract", "sites", "features", "train", "report", "all", "positions", "impact", "extras", "sitecheck"])
+    ap.add_argument("step", choices=["extract", "sites", "features", "train", "report", "all", "positions", "impact", "extras", "sitecheck", "measure"])
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--target", default="Cloud9",
                     help='team whose opponents get reports, e.g. "Cloud9 GC" (GC targets use all events)')
@@ -239,6 +270,8 @@ def main() -> None:
         extras(limit=a.limit)
     if a.step == "sitecheck":
         sitecheck()
+    if a.step == "measure":
+        measure()
 
 
 if __name__ == "__main__":
