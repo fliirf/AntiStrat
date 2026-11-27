@@ -103,10 +103,15 @@ def train(out_dir: Path = OUT_DIR, metrics_path: Path = METRICS_PATH) -> dict:
 
 
 def report(out_dir: Path = OUT_DIR, data_dir: Path = DATA_DIR, metrics_path: Path = METRICS_PATH,
-           agg_dir: Path = AGGREGATES_DIR, target: str = "Cloud9") -> dict:
+           agg_dir: Path = AGGREGATES_DIR, target: str = "Cloud9",
+           centers_path: Path = CENTERS_PATH) -> dict:
     import json
     metrics = json.loads(metrics_path.read_text())
     index = build_reports(_features_df(out_dir), metrics, data_dir, agg_dir, target=target)
+    # Site centres (aggregate coordinates) let the UI draw a schematic minimap.
+    if centers_path.exists():
+        index["sites"] = json.loads(centers_path.read_text())
+        (agg_dir / "index.json").write_text(json.dumps(index, indent=2) + "\n")
     print(f"{len(index['opponents'])} opponents of {target} -> {agg_dir}")
     return index
 

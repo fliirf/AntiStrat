@@ -40,3 +40,11 @@ def test_rejects_bad_input(api_with_data):
     assert client.get(f"/report/{opp['id']}/ascent").status_code == 400
     r = client.post("/simulate", json={"team": opp["id"], "map": opp["maps"][0], "plan": ["stack:Z"]})
     assert r.status_code == 400
+
+
+def test_simulate_every_call_type(api_with_data):
+    opp = api_with_data["opponents"][0]
+    rep = client.get(f"/report/{opp['id']}/{opp['maps'][0]}").json()
+    plan = ["default", "read"] + [f"stack:{s}" for s in rep["site_mix_smoothed"]]
+    r = client.post("/simulate", json={"team": opp["id"], "map": opp["maps"][0], "plan": (plan * 5)[:24], "n": 200})
+    assert r.status_code == 200, r.text

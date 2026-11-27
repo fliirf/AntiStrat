@@ -35,8 +35,10 @@ def make_dataset(root: Path, n_series: int = 12, rounds_per_game: int = 20, seed
     for s in range(n_series):
         sid = str(1000 + s)
         m = ["haven", "lotus"][s % 2]
-        a, b = rng.sample(teams, 2)
-        event = "VCT Americas - Stage 1 2025" if s % 3 == 0 else "Game Changers NA - Split 1 2025"
+        vct = s % 3 == 0
+        # Cloud9 (t1) plays every VCT series so it always has opponents to scout.
+        a, b = ("t1", rng.choice(teams[1:])) if vct else tuple(rng.sample(teams, 2))
+        event = "VCT Americas - Stage 1 2025" if vct else "Game Changers NA - Split 1 2025"
         start = datetime(2025, 1, 1, tzinfo=timezone.utc) + timedelta(days=s)
         gid = f"g{sid}"
         players = {a: [f"{a}p{i}_{sid}" for i in range(5)], b: [f"{b}p{i}_{sid}" for i in range(5)]}
@@ -94,7 +96,7 @@ def make_dataset(root: Path, n_series: int = 12, rounds_per_game: int = 20, seed
                                                              "view": {"x": 1, "y": 0, "z": 0}}, "quality": "ok"})
             # First kill near the site at ~20 s.
             t = t0 + timedelta(seconds=20)
-            fx, fy = SITES[m][site]
+            fx, fy = SITES[m][site if rng.random() < 0.6 else rng.choice("ABC")]
             env([{"id": f"ev{sid}-{rn}-k", "type": "player-killed-player", "includesFullState": False,
                   "actor": {"type": "player", "id": players[att][0], "state": {"side": "attacker"}},
                   "target": {"type": "player", "id": players[dfn][0],

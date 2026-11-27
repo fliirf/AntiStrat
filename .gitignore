@@ -13,8 +13,8 @@ stl-hackathon-2026-grid-starter/
 meta/
 series.csv
 # Local output of the extraction pipeline (see engine/antistrat/config.py)
-data/
-out/
+/data/
+/out/
 # CSVs are blocked by default; aggregate results meant for the demo go in
 # web/public/aggregates/ as JSON. Allow specific CSVs explicitly if needed.
 *.csv

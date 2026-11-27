@@ -136,10 +136,10 @@ def simulate(report: dict, economy: dict, plan: list[str], start_side: str = "de
                  "p_win": round(float(p_us[live].mean()) if live.any() else float(p_us.mean()), 3),
                  "p_reached": round(float(live.mean()), 3)}
         if defending:
-            mixd = dict(zip(sites, mix))
+            mixd = {s: float(p) for s, p in zip(sites, mix)}
             entry["likely_site"] = sites[int(np.argmax(mix))]
-            entry["delta_vs_default"] = round(expected_shift(plan[i], mixd, acc, a), 3)
-            entry["leak"] = entry["delta_vs_default"] < 0
+            entry["delta_vs_default"] = round(float(expected_shift(plan[i], mixd, acc, a)), 3)
+            entry["leak"] = bool(entry["delta_vs_default"] < 0)
             if plan[i].startswith("stack:"):
                 entry["note"] = f"{1 - mixd.get(plan[i][6:], 0):.0%} of their attacks go elsewhere"
             elif plan[i] == "read":
