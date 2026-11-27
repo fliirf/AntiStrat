@@ -14,13 +14,10 @@ Scope: Cloud9's VCT 2025 opponents on the 7 maps where the read beats the baseli
 (Ascent, Corrode, Fracture, Haven, Icebox, Lotus, Pearl). Models train on all rounds (VCT + Game Changers).
 
 ### What the data says (and why the product looks like this)
-Walk-forward tests on ~42,500 rounds:
-- A team's own site mix does **not** predict its next rounds better than the map average, and updating on earlier
-  rounds of the same game makes it worse. So the tool does not tell coaches to stack a site on habit.
-- The **in-round read** does work: early utility and first contact lift site prediction 7–25 points over the
-  baseline. When the read is confident (≥ 70%), it is right 76–82% of the time, in 33–68% of rounds.
-- First contact comes ~22–28 s before the plant, so there is time to act on it.
-- Team-specific tells did not beat the map-wide read; opponent traits are limited to the ones that held up.
+Walk-forward tests on the full dataset showed that a team's own site habits do not predict its next rounds better
+than the map average, while the in-round read (early utility, first contact) does, with time to act on it. So the
+tool builds per-map rules from the in-round read and limits opponent traits to the ones that held up over time.
+Exact figures are shown to judges in the demo and video (GRID license, section 4(b)).
 
 ## Layout
 
@@ -63,8 +60,9 @@ python -m antistrat.pipeline all                 # extract -> sites -> features 
 | `train` | features | models in `../antistrat-out/models/`, metrics in `engine/antistrat/data/model_metrics.json` |
 | `report` | features, models, `meta/teams.csv` | aggregate JSON in `web/public/aggregates/` |
 
-`web/public/aggregates/` holds the real-data aggregates (shares, counts, accuracies, rules; no rows). Without them,
-`python engine/scripts/make_sample_aggregates.py` writes synthetic sample data and the UI shows a "Sample data" banner.
+`web/public/aggregates/` is filled by the `report` step on your machine and is git-ignored: everything derived from the
+GRID data stays local (license section 3(a)). Without it, `python engine/scripts/make_sample_aggregates.py` writes
+synthetic sample data and the UI shows a "Sample data" banner.
 
 ### Method in short
 - **Sites:** GRID has no site field, so plants are clustered per map (KMeans, 3 sites on Haven and Lotus).
