@@ -15,6 +15,7 @@ import pandas as pd
 from sklearn.model_selection import GroupKFold
 
 from antistrat.adaptation import team_adaptation
+from antistrat.edges import confident_read, find_edges, team_specific_gain, timing
 from antistrat.model import FEATURE_SETS, _clf
 
 PRIOR_WEIGHT = 5.0
@@ -38,11 +39,15 @@ def oof_predictions(df: pd.DataFrame, map_name: str, folds: int = 5) -> pd.DataF
     k = min(folds, groups.nunique())
     for name, cols in FEATURE_SETS.items():
         pred = pd.Series(index=d.index, dtype=object)
+        prob = pd.Series(index=d.index, dtype=float)
         if k >= 2:
             for tr, te in GroupKFold(n_splits=k).split(d, groups=groups):
                 m = _clf().fit(d.iloc[tr][cols].astype(float), d.iloc[tr]["site"])
-                pred.iloc[te] = m.predict(d.iloc[te][cols].astype(float))
+                X = d.iloc[te][cols].astype(float)
+                pred.iloc[te] = m.predict(X)
+                prob.iloc[te] = m.predict_proba(X).max(axis=1)
         d[f"pred_{name}"] = pred
+        d[f"prob_{name}"] = prob
     d.attrs["sites"] = sites
     return d
 
@@ -83,6 +88,27 @@ def _tells(team_rounds: pd.DataFrame, sites: list[str]) -> list[dict]:
     return best[:6]
 
 
+EDGE_FIELDS = ["kind", "key", "text", "site", "n", "rate", "ref_rate", "lift", "q", "shown"]
+
+
+def _edges_for(edges: pd.DataFrame, team: str, m: str) -> list[dict]:
+    """Shown edges first (strongest first), then the near misses for transparency."""
+    if not len(edges):
+        return []
+    e = edges[(edges["team"] == team) & (edges["map"] == m)].copy()
+    e = e[(e["shown"]) | (e["q"] < 0.5)]
+    e["score"] = e["lift"].abs() * np.sqrt(e["n"])
+    e = e.sort_values(["shown", "score"], ascending=[False, False]).head(12)
+    out = []
+    for r in e[EDGE_FIELDS].to_dict("records"):
+        r["q"] = round(float(r["q"]), 4)
+        r["shown"] = bool(r["shown"])
+        r["n"] = int(r["n"])
+        r["site"] = r["site"] if isinstance(r["site"], str) else None
+        out.append(r)
+    return out
+
+
 def build_reports(features: pd.DataFrame, metrics: dict, data_dir: Path, out_dir: Path,
                   target: str = "Cloud9", maps: list[str] | None = None, vct_only: bool = True,
                   min_target_games: int = MIN_TARGET_GAMES) -> dict:
@@ -100,12 +126,21 @@ def build_reports(features: pd.DataFrame, metrics: dict, data_dir: Path, out_dir
 
     adapt = team_adaptation(features)
     oof = {m: oof_predictions(features, m) for m in maps if (features["map"] == m).any()}
+    maps_sites = {m: d.attrs["sites"] for m, d in oof.items()}
+    edges, edge_summary = find_edges(features, opponents + sorted(target_ids), maps_sites)
     out_dir.mkdir(parents=True, exist_ok=True)
     index = {"target": target, "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
              "scope": "VCT" if vct_only else "all", "metrics": metrics.get("maps", {}),
-             "economy": metrics.get("economy", {}), "maps": [], "opponents": []}
+             "economy": metrics.get("economy", {}), "maps": [], "opponents": [],
+             "edge_validation": {**edge_summary,
+                                 "team_specific_read": team_specific_gain(features, list(oof), opponents)},
+             "map_detail": {m: {"timing": timing(features[features["map"] == m]),
+                                "confident_read": {name: confident_read(d[f"pred_{name}"], d[f"prob_{name}"], d["site"])
+                                                   for name in FEATURE_SETS}}
+                            for m, d in oof.items()}}
 
-    for team in opponents:
+    index["self"] = []  # the target scouted like an opponent: how readable are we?
+    for team in opponents + sorted(target_ids):
         entry = {"id": team, "name": names.get(team, team), "maps": []}
         for m, d in oof.items():
             sites = d.attrs["sites"]
@@ -139,13 +174,17 @@ def build_reports(features: pd.DataFrame, metrics: dict, data_dir: Path, out_dir
                 "site_mix": _mix(tr["site"], sites), "site_mix_smoothed": smooth, "map_site_mix": map_mix,
                 "site_counts": counts, "tells": _tells(tr, sites), "read_accuracy": read,
                 "adaptation": adaptation,
+                "edges": _edges_for(edges, team, m),
+                "timing": timing(attack),
+                "confident_read": {name: confident_read(tr[f"pred_{name}"], tr[f"prob_{name}"], tr["site"])
+                                   for name in FEATURE_SETS},
                 "economy": {"attack_win_rate": round(float((attack["winside"] == "attacker").mean()), 3),
                             "plant_rate": round(n / len(attack), 3)},
             }
             (out_dir / f"{team}_{m}.json").write_text(json.dumps(report, indent=2) + "\n")
             entry["maps"].append(m)
         if entry["maps"]:
-            index["opponents"].append(entry)
+            index["self" if team in target_ids else "opponents"].append(entry)
     index["maps"] = sorted({m for o in index["opponents"] for m in o["maps"]})
     (out_dir / "index.json").write_text(json.dumps(index, indent=2) + "\n")
     return index
