@@ -1,0 +1,65 @@
+{
+  "_note": "attack_target = attack round win rate the engine is tuned to. Sources: VCT Champions 2025 map analysis (thespike.gg) and VCT 2026 Stage 1 map stats (thespike.gg); single-event figures are shrunk halfway toward 0.50 because round samples are small. Maps without a public figure are 0.50 placeholders. attack_bias is fitted by `python -m antistrat.quick.harness --fit-bias`; do not edit by hand.",
+  "maps": [
+    {
+      "id": "abyss",
+      "attack_target": 0.54,
+      "observed": "57.9% atk, Champions 2025",
+      "attack_bias": 0.102
+    },
+    {
+      "id": "haven",
+      "attack_target": 0.54,
+      "observed": "57.7% atk, Champions 2025; mid-50s EMEA/CN Stage 1 2026",
+      "attack_bias": 0.102
+    },
+    {
+      "id": "breeze",
+      "attack_target": 0.53,
+      "observed": "Americas atk well above 55%, Stage 1 2026",
+      "attack_bias": 0.093
+    },
+    {
+      "id": "lotus",
+      "attack_target": 0.51,
+      "observed": "51.0% atk, Champions 2025",
+      "attack_bias": 0.057
+    },
+    {
+      "id": "corrode",
+      "attack_target": 0.5,
+      "observed": "no public figure (placeholder)",
+      "attack_bias": 0.04
+    },
+    {
+      "id": "ascent",
+      "attack_target": 0.48,
+      "observed": "no public figure; small sample in Stage 1 2026 (placeholder)",
+      "attack_bias": 0.008
+    },
+    {
+      "id": "pearl",
+      "attack_target": 0.46,
+      "observed": "defense well over half in EMEA, Stage 1 2026",
+      "attack_bias": -0.023
+    },
+    {
+      "id": "split",
+      "attack_target": 0.47,
+      "observed": "defense edges attack (EMEA, Americas), Stage 1 2026",
+      "attack_bias": -0.004
+    },
+    {
+      "id": "bind",
+      "attack_target": 0.48,
+      "observed": "45.1% atk (54.9% def), Champions 2025",
+      "attack_bias": 0.008
+    },
+    {
+      "id": "sunset",
+      "attack_target": 0.45,
+      "observed": "39.6% atk (60.4% def), Champions 2025",
+      "attack_bias": -0.032
+    }
+  ]
+}
